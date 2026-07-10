@@ -87,6 +87,9 @@ def _truncate(value: Any, limit: int = _MAX_VALUE) -> Any:
             return _truncate(value.model_dump(), limit)
         except Exception:
             pass
+    namespace = getattr(value, "__dict__", None)
+    if isinstance(namespace, dict):
+        return _truncate(namespace, limit)
     return _truncate(str(value), limit)
 
 
