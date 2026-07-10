@@ -39,6 +39,7 @@ services:
       - HERMES_UID=${HERMES_UID:-10000}
       - HERMES_GID=${HERMES_GID:-10000}
       - HERMES_GATEWAY_LOCK_DIR=/tmp/hermes-gateway-locks
+      - HERMES_PROVIDER_RESPONSE_DIAGNOSTICS=1
       # To expose the OpenAI-compatible API server beyond localhost,
       # uncomment BOTH lines (API_SERVER_KEY is mandatory for auth):
       # - API_SERVER_HOST=0.0.0.0
