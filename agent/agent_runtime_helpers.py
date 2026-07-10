@@ -1469,6 +1469,65 @@ def dump_api_request_debug(
         return None
 
 
+def dump_sdk_payload_debug(
+    agent,
+    api_kwargs: Dict[str, Any],
+    *,
+    reason: str,
+) -> Optional[Path]:
+    """Write the final SDK payload immediately before an OpenAI SDK call.
+
+    Gated by ``HERMES_DUMP_SDK_PAYLOAD`` so normal runtime behavior and I/O are
+    unchanged. The dump uses the same hook payload sanitizer plus global text
+    redaction as the existing request dump path.
+    """
+    if not env_var_enabled("HERMES_DUMP_SDK_PAYLOAD"):
+        return None
+
+    try:
+        body = copy.deepcopy(api_kwargs)
+        body.pop("timeout", None)
+        body.pop("http_client", None)
+        body = {k: v for k, v in body.items() if v is not None}
+
+        client_kwargs = getattr(agent, "_client_kwargs", {}) or {}
+        default_headers = client_kwargs.get("default_headers")
+        headers = dict(default_headers) if isinstance(default_headers, dict) else {}
+
+        dump_payload: Dict[str, Any] = {
+            "timestamp": datetime.now().isoformat(),
+            "session_id": getattr(agent, "session_id", None),
+            "reason": reason,
+            "request": {
+                "method": "POST",
+                "url": (
+                    f"{str(getattr(agent, 'base_url', '') or '').rstrip('/')}"
+                    f"{'/responses' if getattr(agent, 'api_mode', '') == 'codex_responses' else '/chat/completions'}"
+                ),
+                "headers": headers,
+                "body": body,
+            },
+        }
+
+        safe_sid = _ra()._safe_session_filename_component(
+            getattr(agent, "session_id", None) or "no-session"
+        )
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        dump_file = Path(getattr(agent, "logs_dir")) / f"sdk_payload_dump_{safe_sid}_{timestamp}.json"
+
+        sanitized = agent._sanitize_hook_payload(dump_payload)
+        from agent.redact import redact_sensitive_text
+
+        serialized = json.dumps(sanitized, ensure_ascii=False, indent=2, default=str)
+        redacted_payload = json.loads(redact_sensitive_text(serialized, force=True))
+        atomic_json_write(dump_file, redacted_payload, default=str)
+        return dump_file
+    except Exception as dump_error:
+        if getattr(agent, "verbose_logging", False):
+            logger.warning("Failed to dump SDK payload debug file: %s", dump_error)
+        return None
+
+
 
 def anthropic_prompt_cache_policy(
     agent,

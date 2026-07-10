@@ -35,7 +35,7 @@ from agent.message_sanitization import (
     _repair_tool_call_arguments,
 )
 from tools.terminal_tool import is_persistent_env
-from utils import base_url_host_matches, base_url_hostname, env_float, env_int
+from utils import base_url_host_matches, base_url_hostname, env_float, env_int, env_var_enabled
 
 logger = logging.getLogger(__name__)
 _OPENROUTER_PROVIDER_SORT_VALUES = {"throughput", "latency", "price"}
@@ -2022,6 +2022,17 @@ def interruptible_streaming_api_call(agent, api_kwargs: dict, *, on_first_delta=
                 api_kwargs=stream_kwargs,
             )
         )
+        if env_var_enabled("HERMES_DUMP_SDK_PAYLOAD"):
+            try:
+                from agent.agent_runtime_helpers import dump_sdk_payload_debug
+
+                dump_sdk_payload_debug(
+                    agent,
+                    stream_kwargs,
+                    reason="chat_completion_stream_request",
+                )
+            except Exception:
+                pass
         # Reset stale-stream timer so the detector measures from this
         # attempt's start, not a previous attempt's last chunk.
         last_chunk_time["t"] = time.time()
