@@ -6,3 +6,4 @@ them makes run_agent.py focused on the AIAgent orchestrator class.
 """
 
 from . import jiter_preload as _jiter_preload  # noqa: F401
+from . import provider_response_diagnostics as _provider_response_diagnostics  # noqa: F401
